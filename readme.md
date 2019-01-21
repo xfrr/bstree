@@ -22,7 +22,7 @@ type BTree struct {
 
 #### Node
 
-```
+```go
 type Node struct {
 	Key           int
 	Value         interface{}
@@ -82,7 +82,7 @@ node := tree.Remove(132)
 
 Serialize tree and save it to disk.
 
-```
+```go
 err := tree.Commit()
 ```
 
@@ -90,7 +90,7 @@ err := tree.Commit()
 
 Load tree from disk.
 
-```
+```go
 err := tree.Load()
 ```
 
@@ -114,7 +114,7 @@ min := tree.Max()
 
 Iterate over all nodes in order
 
-```
+```go
 tree.TraverseInOrder(tree.root, func(n *Node) {
     ... print node
 })
@@ -138,7 +138,7 @@ tree.TraverseInOrder(tree.root, func(n *Node) {
 
 Command to execute
 
-```
+```shell
 go test -v
 ```
 
