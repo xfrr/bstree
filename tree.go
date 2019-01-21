@@ -1,17 +1,19 @@
 package btree
 
 import (
-	"fmt"
+	"errors"
 	"sync"
 )
 
-type Tree struct {
+// BTree structure
+type BTree struct {
 	root *Node
 	lock sync.RWMutex
+	size int
 }
 
-func (t *Tree) Put(key int, value string) {
-
+// Put Inserts a new node on the tree
+func (t *BTree) Put(key int, value string) {
 	t.lock.Lock()
 	defer t.lock.Unlock()
 
@@ -22,143 +24,156 @@ func (t *Tree) Put(key int, value string) {
 		Right: nil,
 	}
 
+	// Increment tree size
+	t.size++
+
+	// If root node is empty, this new node becomes the root.
 	if t.root == nil {
 		t.root = newNode
-		return
+	} else {
+		t.root.put(newNode)
 	}
-
-	putNode(t.root, newNode)
 }
 
-func (t *Tree) Find(key int) (string, bool) {
+// Find returns node searching by Key
+func (t *BTree) Find(key int) (interface{}, bool) {
 	t.lock.RLock()
 	defer t.lock.RUnlock()
-	return findNode(t.root, key)
-}
 
-func (t *Tree) Max() *Node {
-	t.lock.RLock()
-	defer t.lock.RUnlock()
-	if t == nil {
-		return nil
-	}
-
-	node := t.root
-	for {
-		if node.Right == nil {
-			return node
-		}
-	}
-}
-
-func (t *Tree) Min() *Node {
-	t.lock.RLock()
-	defer t.lock.RUnlock()
-	if t == nil {
-		return nil
-	}
-
-	node := t.root
-	for {
-		if node.Left == nil {
-			return node
-		}
-	}
-}
-
-func (t *Tree) Remove(key int, parent *Node) {
-	t.lock.Lock()
-	defer t.lock.Unlock()
-	removeNode(t.root, key)
-}
-
-func putNode(n *Node, newNode *Node) {
-	switch {
-	case newNode.Key < n.Key:
-		//fmt.Printf("LEFT: %d\n", n.Key)
-		if n.Left == nil {
-			n.Left = newNode
-		} else {
-			putNode(n.Left, newNode)
-		}
-	default:
-		//fmt.Printf("RIGHT: %d\n", n.Key)
-		if n.Right == nil {
-			n.Right = newNode
-		} else {
-			putNode(n.Right, newNode)
-		}
-	}
-}
-
-func findNode(n *Node, key int) (string, bool) {
-	if n == nil {
+	if t.root == nil {
 		return "", false
 	}
-	switch {
-	case key < n.Key:
-		return findNode(n.Left, key)
-	case key > n.Key:
-		return findNode(n.Right, key)
-	}
-	return n.Value, true
+
+	return t.root.find(key)
 }
 
-func removeNode(n *Node, key int) *Node {
-	if n == nil {
+// Max returns the node with max value
+func (t *BTree) Max() *Node {
+	t.lock.RLock()
+	defer t.lock.RUnlock()
+
+	if t.root == nil {
 		return nil
 	}
 
-	switch {
-	case key < n.Key:
-		n.Left = removeNode(n.Left, key)
-		return n
-	case key > n.Key:
-		n.Right = removeNode(n.Right, key)
-		return n
-	}
+	return t.root.max()
+}
 
-	if n.Left == nil && n.Right == nil {
-		n = nil
+// Min returns the node with min value
+func (t *BTree) Min() *Node {
+	t.lock.RLock()
+	defer t.lock.RUnlock()
+	if t == nil {
 		return nil
 	}
 
-	if n.Left == nil {
-		n = n.Right
-		return n
-	}
-	if n.Right == nil {
+	return t.root.min()
+}
+
+// LeftHeight ...
+func (t *BTree) LeftHeight() int {
+	t.lock.RLock()
+	defer t.lock.RUnlock()
+
+	i := 0
+	n := t.root
+	for n != nil {
 		n = n.Left
-		return n
+		i++
+	}
+	return i
+}
+
+// RightHeight ...
+func (t *BTree) RightHeight() int {
+	t.lock.RLock()
+	defer t.lock.RUnlock()
+
+	i := 0
+	n := t.root
+	for n != nil {
+		n = n.Right
+		i++
+	}
+	return i
+}
+
+// Remove removes a node searching by Key
+func (t *BTree) Remove(key int) *Node {
+	t.lock.Lock()
+	defer t.lock.Unlock()
+
+	if t.root == nil {
+		return nil
 	}
 
-	smallestRightValue := n.Right
+	fakeParent := &Node{Right: t.root}
+	n := t.root.remove(key, fakeParent)
 
-	for {
-		if smallestRightValue != nil && smallestRightValue.Left != nil {
-			smallestRightValue = smallestRightValue.Left
-		} else {
-			break
-		}
+	if fakeParent.Right == nil {
+		t.root = nil
 	}
 
-	n.Key = smallestRightValue.Key
-	n.Value = smallestRightValue.Value
-	n.Right = removeNode(n.Right, n.Key)
 	return n
 }
 
-// internal recursive function to print a tree
-func stringify(n *Node, level int) {
-	if n != nil {
-		format := ""
-		for i := 0; i < level; i++ {
-			format += "       "
-		}
-		format += "---[ "
-		level++
-		stringify(n.Left, level)
-		fmt.Printf(format+"%d\n", n.Key)
-		stringify(n.Right, level)
+// TraverseInOrder goes through all the nodes in order
+func (t *BTree) TraverseInOrder(n *Node, f func(*Node)) {
+	t.lock.RLock()
+	defer t.lock.RUnlock()
+
+	if n == nil {
+		return
 	}
+
+	t.TraverseInOrder(n.Left, f)
+	f(n)
+	t.TraverseInOrder(n.Right, f)
+}
+
+// Commit saves the tree to the file storage
+func (t *BTree) Commit() error {
+	if t == nil || t.root == nil {
+		return errors.New("Can not save an empty tree")
+	}
+
+	var err error
+	var done = make(chan bool)
+	go func(err error) {
+		err = Serialize(t.root)
+		done <- true
+	}(err)
+
+	if err != nil {
+		return err
+	}
+	<-done
+
+	t.root = nil
+
+	return nil
+}
+
+// Load loads in memory the stored tree
+func (t *BTree) Load() error {
+	var err error
+	var done = make(chan bool)
+	go func(err error) {
+		err = Deserialize(t.root)
+		done <- true
+	}(err)
+
+	if err != nil {
+		return err
+	}
+	<-done
+
+	return nil
+}
+
+// Size prints the tree
+func (t *BTree) Size() int {
+	t.lock.RLock()
+	defer t.lock.RUnlock()
+	return t.size
 }
