@@ -1,4 +1,4 @@
-# Golang BTree
+# Golang BSTree
 
 Binary Search Tree implemented with concurrency safe on Golang.
 
