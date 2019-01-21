@@ -107,7 +107,7 @@ max := tree.Max()
 Returns the node with min key value. 
 
 ```go
-min := tree.Max()
+min := tree.Min()
 ```
 
 #### TraverseInOrder
