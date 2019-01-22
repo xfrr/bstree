@@ -133,8 +133,8 @@ func (t *BTree) TraverseInOrder(n *Node, f func(*Node)) {
 
 // Commit saves the tree to the file storage
 func (t *BTree) Commit() error {
-	t.lock.RLock()
-	defer t.lock.RUnlock()
+	t.lock.Lock()
+	defer t.lock.Unlock()
 
 	if t == nil || t.root == nil {
 		return errors.New("Can not save an empty tree")
@@ -159,9 +159,6 @@ func (t *BTree) Commit() error {
 
 // Load loads in memory the stored tree
 func (t *BTree) Load() error {
-	t.lock.Lock()
-	defer t.lock.Unlock()
-
 	var err error
 	var done = make(chan bool)
 	go func(err error) {

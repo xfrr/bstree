@@ -108,3 +108,18 @@ func TestIntSize(t *testing.T) {
 		t.Errorf("Incorrect size -%d-", s)
 	}
 }
+
+func BenchmarkPut(b *testing.B) {
+	// run the Fib function b.N times
+	for n := 0; n < b.N; n++ {
+		v := strconv.Itoa(n + 1)
+		tree.Put(n+1, v)
+	}
+}
+
+func BenchmarkRead(b *testing.B) {
+	// run the Fib function b.N times
+	for n := 0; n < b.N; n++ {
+		tree.Find(n + 1)
+	}
+}
